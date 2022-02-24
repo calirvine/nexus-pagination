@@ -1,5 +1,5 @@
 import { server } from "./server";
 
-server.listen().then(({ url }) => {
-  console.log(`🚀 Server ready at ${url}`);
+server.listen(4000, () => {
+  console.log("Server listening at http://localhost:4000/graphql");
 });

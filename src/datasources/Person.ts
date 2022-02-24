@@ -1,6 +1,7 @@
 import { Person, PrismaClient } from "@prisma/client";
 import { BaseDatasource } from "./BaseDatasource";
-import { NexusGenFieldTypes } from "../nexus-typegen";
+import { ConnectionArguments } from "graphql-relay";
+import { keyFromCursor } from "../schema/utils";
 
 const __typename = "Person" as const;
 
@@ -10,7 +11,7 @@ export class PersonDatasource extends BaseDatasource {
   }
 
   getPersonById(id: string) {
-    return this.db.person.findUnique({ where: { id } }).then((res) => {
+    return this.db.person.findUnique({ where: { id: id } }).then((res) => {
       if (!res) return null;
       return { ...res, __typename };
     });
@@ -19,49 +20,27 @@ export class PersonDatasource extends BaseDatasource {
   async getPeopleForConnection({
     after,
     first,
-  }: {
-    // args
-    after?: string | null; // String
-    first: number; // Int
-  }): Promise<NexusGenFieldTypes["PersonConnection"]> {
-    const data = await this.db.person.findMany({
-      take: first + 1,
-      skip: after ? 1 : undefined,
-      cursor: after ? { id: idFromCursor(after) } : undefined,
-      orderBy: {
-        lastUpdated: "desc",
-      },
-    });
-
-    const hasNextPage = data.length === first + 1;
-
-    const pageInfo: NexusGenFieldTypes["PersonConnection"]["pageInfo"] = {
-      hasNextPage: hasNextPage,
-      hasPreviousPage: false,
-      endCursor: cursorFromId(
-        hasNextPage ? data[data.length - 2].id : data[data.length - 1].id
-      ),
-    };
-    const nodes: NexusGenFieldTypes["PersonConnection"]["nodes"] = hasNextPage
-      ? data.slice(0, -1)
-      : data;
-    const edges: NexusGenFieldTypes["PersonConnection"]["edges"] =
-      nodes.map(edgeFromPerson);
-    return { pageInfo, nodes, edges };
+    before,
+    last,
+  }: ConnectionArguments): Promise<Person[]> {
+    if (first && !last && !before) {
+      return this.db.person.findMany({
+        take: after ? first + 2 : first + 1,
+        cursor: after ? { id: keyFromCursor(after) } : undefined,
+        orderBy: {
+          lastUpdated: "desc",
+        },
+      });
+    }
+    if (last && !first && !after) {
+      return this.db.person.findMany({
+        take: before ? (last + 2) * -1 : (last + 1) * -1,
+        cursor: before ? { id: keyFromCursor(before) } : undefined,
+        orderBy: {
+          lastUpdated: "desc",
+        },
+      });
+    }
+    throw new Error("First or last, but not both, must be a positive integer");
   }
-}
-
-function edgeFromPerson(person: Person): NexusGenFieldTypes["PersonEdge"] {
-  return {
-    node: person,
-    cursor: cursorFromId(person.id),
-  };
-}
-
-function cursorFromId(id: string) {
-  return Buffer.from(id).toString("base64");
-}
-
-function idFromCursor(cursor: string) {
-  return Buffer.from(cursor, "base64").toString();
 }

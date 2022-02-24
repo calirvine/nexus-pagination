@@ -1,5 +1,7 @@
 import { extendType, objectType, queryType } from "nexus";
-import { encodeNodeId } from "./utils";
+import { encodeNodeId, prismaConnectionWrapper } from "./utils";
+import { connectionFromArraySlice, fromGlobalId } from "graphql-relay";
+import { sleep } from "../utils";
 //import { Person as PersonModel } from "@prisma/client";
 
 export const Person = objectType({
@@ -11,13 +13,14 @@ export const Person = objectType({
   definition(t) {
     t.implements("Node");
     t.nonNull.id("id", {
-      resolve: ({ id }) => encodeNodeId("Person", id),
+      resolve: ({ id }) => encodeNodeId("Person", id.toString()),
     });
     t.nonNull.string("fullname", {
-      resolve: ({ firstName, middleNames, lastName, suffix }) =>
-        [firstName, middleNames, lastName, suffix]
+      resolve: async ({ firstName, middleNames, lastName, suffix }) => {
+        return [firstName, middleNames, lastName, suffix]
           .join(" ")
-          .replace(/ +(?= )/g, ""),
+          .replace(/ +(?= )/g, "");
+      },
     });
     t.field("address", {
       type: "Address",
@@ -28,7 +31,8 @@ export const Person = objectType({
     });
     t.field("contactInfo", {
       type: "ContactInfo",
-      resolve: ({ contactInfoId }, _, { contactDataSource }) => {
+      resolve: async ({ contactInfoId }, _, { contactDataSource }) => {
+        await sleep(Math.floor(Math.random() * 4000));
         return contactInfoId
           ? contactDataSource.getContactById(contactInfoId)
           : null;
@@ -46,9 +50,10 @@ export const PersonQuery = extendType({
       nonNullDefaults: {
         output: true,
       },
-      disableBackwardPagination: true,
-      resolve: (root, args, ctx) =>
-        ctx.personDataSource.getPeopleForConnection(args),
+      resolve: async function (_, args, ctx) {
+        const data = await ctx.personDataSource.getPeopleForConnection(args);
+        return prismaConnectionWrapper(data, (args) => args.id, args);
+      },
     });
   },
 });

@@ -1,39 +1,69 @@
-import { ApolloServer } from "apollo-server";
+import {
+  getGraphQLParameters,
+  processRequest,
+  renderGraphiQL,
+  sendResult,
+  shouldRenderGraphiQL,
+} from "graphql-helix";
 import { PrismaClient } from "@prisma/client";
+import { envelop, useSchema, useTiming } from "@envelop/core";
 
 import { schema } from "./schema";
-import { Context } from "./context";
-import { encodeNodeId } from "./schema/utils";
+import { createDatasourceContext } from "./context";
+import fastify from "fastify";
 
 const prisma = new PrismaClient();
 
-// uncomment to get some IDs console logged
+export const getEnveloped = envelop({
+  plugins: [useSchema(schema), useTiming()],
+});
 
-// prisma.address.findMany({ take: 2 }).then((res) => {
-//   const list = res.map((address) => ({
-//     addressId: address.id,
-//     relayAddressId: encodeNodeId("Address", address.id),
-//   }));
-//   console.log(list);
-// });
-// prisma.person.findMany({ take: 2 }).then((res) => {
-//   const list = res.map((person) => ({
-//     personId: person.id,
-//     relayPersonId: encodeNodeId("Person", person.id),
-//   }));
-//   console.log(list);
-// });
-// prisma.contactInfo.findMany({ take: 2 }).then((res) => {
-//   const list = res.map((contact) => ({
-//     contactId: contact.id,
-//     relayContactId: encodeNodeId("ContactInfo", contact.id),
-//   }));
-//   console.log(list);
-// });
+const app = fastify();
 
-export const server = new ApolloServer({
-  schema,
-  context: () => {
-    return new Context(prisma);
+app.route({
+  method: ["GET", "POST"],
+  url: "/graphql",
+  async handler(req, res) {
+    const { parse, validate, contextFactory, execute, schema } = getEnveloped({
+      req,
+      ...createDatasourceContext(prisma),
+    });
+    const request = {
+      body: req.body,
+      headers: req.headers,
+      method: req.method,
+      query: req.query,
+    };
+
+    if (shouldRenderGraphiQL(request)) {
+      res.type("text/html");
+      res.send(renderGraphiQL());
+    } else {
+      const request = {
+        body: req.body,
+        headers: req.headers,
+        method: req.method,
+        query: req.query,
+      };
+      const { operationName, query, variables } = getGraphQLParameters(request);
+      const result = await processRequest({
+        operationName,
+        query,
+        variables,
+        request,
+        schema,
+        parse,
+        validate,
+        execute,
+        contextFactory,
+      });
+
+      sendResult(result, res.raw);
+
+      // Tell fastify a response was sent
+      res.sent = true;
+    }
   },
 });
+
+export const server = app;

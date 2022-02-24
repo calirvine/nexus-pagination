@@ -47,7 +47,10 @@ const Query = queryType({
   definition(t) {
     t.field("ok", {
       type: "Boolean",
-      resolve: () => true,
+      resolve: async function (_, __, ctx) {
+        console.log({ ctx });
+        return true;
+      },
     });
 
     t.field("node", {

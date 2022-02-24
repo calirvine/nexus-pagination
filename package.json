@@ -15,11 +15,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@envelop/core": "^2.0.0",
     "@prisma/client": "^3.8.1",
     "apollo-server": "^3.6.2",
-    "graphql": "^15.8.0",
+    "fastify": "^3.27.2",
+    "graphql": "16.0.0-experimental-stream-defer.5",
+    "graphql-helix": "^1.11.0",
     "graphql-relay": "^0.10.0",
-    "nexus": "^1.1.0"
+    "nexus": "^1.2.0-next.18"
   },
   "devDependencies": {
     "@faker-js/faker": "^6.0.0-alpha.3",
