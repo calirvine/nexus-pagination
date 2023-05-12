@@ -1,0 +1,60 @@
+interface ActionInterface {
+  milestoneId: String!
+}
+
+type ButtonAction implements ActionInterface {
+  milestoneId: String!
+  text: String!
+  url: String!
+}
+
+type CtaOnboardingGuideCard implements GuideInterface {
+  action: ButtonAction!
+  complete: Boolean!
+  description: String!
+  id: ID!
+  title: String!
+}
+
+type Guide {
+  addProductTask: GuideInterface
+  getAppTask: GuideInterface
+  lookAtAPokemonTask: GuideInterface
+  name: String!
+}
+
+interface GuideInterface {
+  action: ActionInterface!
+  complete: Boolean!
+  description: String!
+  id: ID!
+  title: String!
+}
+
+type QRCodeAction implements ActionInterface {
+  dataUrl: String!
+  milestoneId: String!
+}
+
+type QrCodeOnboardingGuideCard implements GuideInterface {
+  action: QRCodeAction!
+  complete: Boolean!
+  description: String!
+  id: ID!
+  title: String!
+}
+
+type Query {
+  fastField: String!
+  guide: Guide!
+  slowField: String!
+}
+
+type SlowOnboardingGuideCard implements GuideInterface {
+  action: ButtonAction!
+  complete: Boolean!
+  description: String!
+  id: ID!
+  imageUrl: String!
+  title: String!
+}
